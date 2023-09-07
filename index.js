@@ -1,5 +1,6 @@
 import axios from 'axios';
 import fs from 'fs';
+import puppeteer from 'puppeteer';
 
 //const fs = require('fs');
 const target_directory = './memes';
@@ -18,7 +19,3 @@ axios
     var results = re.exec(html);
 
     // console.log(results[6]);
-  })
-  .catch(function (error) {
-    console.log(error);
-  });

@@ -1,38 +1,52 @@
 import axios from 'axios';
+import cheerio from 'cheerio';
 import fs from 'fs';
-import https from 'https';
+import path from 'path';
+import { URL } from 'url'; // Import the URL library
 
-//const fs = require('fs');
-const target_directory = './memes';
-if (!fs.existsSync(target_directory)) {
-  fs.mkdirSync(target_directory);
+const baseUrl = 'https://memegen-link-examples-upleveled.netlify.app/';
+const targetDirectory = './memes';
+
+// Create the 'memes' directory if it doesn't exist
+if (!fs.existsSync(targetDirectory)) {
+  fs.mkdirSync(targetDirectory);
 }
 
 axios
-  .get('https://memegen-link-examples-upleveled.netlify.app/')
-  .then(function (res) {
-    console.log(res);
-    // ... do something with the response
-  })
-  .catch(function (error) {
-    console.log(error);
-  });
+  .get(baseUrl)
+  .then((response) => {
+    const $ = cheerio.load(response.data);
+    const imgTags = $('img');
 
-const imageUrl = 'https://example.com/image.jpg';
-const imageName = 'image.jpg';
+    let imgCounter = 1;
 
-const file = fs.createWriteStream(imageName);
+    imgTags.each((index, element) => {
+      if (imgCounter <= 10) {
+        const imgSrc = $(element).attr('src');
+        const imgUrl = new URL(imgSrc, baseUrl);
+        const imgExtension = path.extname(imgUrl.pathname);
+        const imgFilename = `${imgCounter
+          .toString()
+          .padStart(2, '0')}${imgExtension}`;
+        const imgFilePath = path.join(targetDirectory, imgFilename);
 
-https
-  .get(imageUrl, (response) => {
-    response.pipe(file);
+        axios({
+          method: 'get',
+          url: imgUrl.href,
+          responseType: 'stream',
+        })
+          .then((response) => {
+            response.data.pipe(fs.createWriteStream(imgFilePath));
+            console.log(`Downloaded: ${imgFilename}`);
+          })
+          .catch((error) => {
+            console.error(`Error downloading ${imgFilename}: ${error.message}`);
+          });
 
-    file.on('finish', () => {
-      file.close();
-      console.log(`Image downloaded as ${imageName}`);
+        imgCounter++;
+      }
     });
   })
-  .on('error', (err) => {
-    fs.unlink(imageName);
-    console.error(`Error downloading image: ${err.message}`);
+  .catch((error) => {
+    console.error(`Error fetching the website: ${error.message}`);
   });
